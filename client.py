@@ -9,7 +9,7 @@ import urllib.parse
 import urllib.request
 from base64 import b64encode
 
-from parser import extract_task_list, extract_spent_time_list
+from .parser import extract_task_list, extract_spent_time_list
 
 ISSUE_URI = "/rest/issue"
 TIME_TRACKING_URI = ISSUE_URI + "/{issue_id}/timetracking/workitem"
