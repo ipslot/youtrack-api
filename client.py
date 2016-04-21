@@ -1,6 +1,7 @@
 # vim: set fileencoding=utf-8
 from __future__ import unicode_literals
 
+import ssl
 import time
 import json
 import http
@@ -40,7 +41,9 @@ class YTClient:
                 replace("//", "/")
             conn = http.client.HTTPSConnection(
                 host=auth_host,
-                port=self._auth_port)
+                port=self._auth_port,
+                # for untrusted https.
+                context=ssl._create_unverified_context())
             headers = {
                 "Content-Type": "application/x-www-form-urlencoded",
                 "Authorization":
@@ -69,7 +72,9 @@ class YTClient:
     def make_basic_request(self):
         conn = http.client.HTTPSConnection(
             host=self._api_host,
-            port=self._api_port)
+            port=self._api_port,
+            # for untrusted https.
+            context=ssl._create_unverified_context())
         headers = {"Authorization": "{type} {token}".format(
             type="Bearer",
             token=self.auth())}
