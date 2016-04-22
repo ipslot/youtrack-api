@@ -87,7 +87,9 @@ class YTClient:
         conn, headers = self.make_basic_request()
         conn.request(
             "GET",
-            ISSUE_URI + "?filter=" + urllib.request.quote(query),
+            ISSUE_URI + "?filter=" + urllib.request.quote(query) +
+            # todo: this hack for getting all issues per one request
+            "&max=10000",
             headers=headers)
         resp = conn.getresponse()
         if resp.status == 200:
@@ -105,4 +107,4 @@ class YTClient:
         if resp.status == 200:
             return extract_spent_time_list(resp.read())
         else:
-            return None
+            return []
