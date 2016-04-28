@@ -10,9 +10,12 @@ import urllib.parse
 import urllib.request
 from base64 import b64encode
 
-from .parser import extract_task_list, extract_spent_time_list
+from .parser import extract_task_list, extract_spent_time_list, extract_users, \
+    extract_user
 
 ISSUE_URI = "/rest/issue"
+USERS_URI = "/rest/admin/user"
+USER_URI = "/rest/admin/user/{user}"
 TIME_TRACKING_URI = ISSUE_URI + "/{issue_id}/timetracking/workitem"
 
 
@@ -80,9 +83,6 @@ class YTClient:
             token=self.auth())}
         return conn, headers
 
-    def get_flagged_tasks(self, flag_name):
-        return self.get_queried_tasks("tag:{flag}".format(flag=flag_name))
-
     def get_queried_tasks(self, query):
         conn, headers = self.make_basic_request()
         conn.request(
@@ -97,6 +97,9 @@ class YTClient:
         else:
             return None
 
+    def get_flagged_tasks(self, flag_name):
+        return self.get_queried_tasks("tag:{flag}".format(flag=flag_name))
+
     def get_spent_time_for_task(self, task_id):
         conn, headers = self.make_basic_request()
         conn.request(
@@ -108,3 +111,34 @@ class YTClient:
             return extract_spent_time_list(resp.read())
         else:
             return []
+
+    def get_user_info(self, user_login):
+        conn, headers = self.make_basic_request()
+        conn.request(
+            "GET",
+            USER_URI.format(user=user_login),
+            headers=headers)
+        resp = conn.getresponse()
+        if resp.status == 200:
+            return extract_user(resp.read())
+        else:
+            return []
+
+    def get_users(self):
+        conn, headers = self.make_basic_request()
+        conn.request(
+            "GET",
+            USERS_URI,
+            headers=headers)
+        resp = conn.getresponse()
+        if resp.status == 200:
+            return extract_users(resp.read())
+        else:
+            return []
+
+    def get_users_full_info(self):
+        users = self.get_users()
+        for user in users:
+            user['name'] = \
+                self.get_user_info(user.get("login")).get('name', None)
+        return users

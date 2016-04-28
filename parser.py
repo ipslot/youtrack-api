@@ -89,3 +89,20 @@ def extract_spent_time_list(string_xml_list):
     if not len(root):
         return []
     return [extract_spent_time(child) for child in root.findall('workItem')]
+
+
+def extract_user(xml_user_entry):
+    if isinstance(xml_user_entry, str) or isinstance(xml_user_entry, bytes):
+        xml_user_entry = xml.etree.ElementTree.fromstring(xml_user_entry)
+    return {
+        "login": xml_user_entry.get('login'),
+        "name": xml_user_entry.get('fullName'),
+        "url": xml_user_entry.get('url'),
+    }
+
+
+def extract_users(string_xml_list):
+    root = xml.etree.ElementTree.fromstring(string_xml_list)
+    if not len(root):
+        return []
+    return [extract_user(child) for child in root.findall('user')]
