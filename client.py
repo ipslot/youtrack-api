@@ -117,9 +117,7 @@ class YTClient:
         conn, headers = self.make_basic_request()
         conn.request(
             "GET",
-            TIME_TRACKING_URI.format(issue_id=task_id) +
-            # todo: this hack for getting all nodes per one request
-            "&max=10000",
+            TIME_TRACKING_URI.format(issue_id=task_id),
             headers=headers)
         resp = conn.getresponse()
         if resp.status == 200:
@@ -140,18 +138,29 @@ class YTClient:
             return []
 
     def get_users(self):
-        conn, headers = self.make_basic_request()
-        conn.request(
-            "GET",
-            USERS_URI +
-            # todo: this hack for getting all nodes per one request
-            "&max=10000",
-            headers=headers)
-        resp = conn.getresponse()
-        if resp.status == 200:
-            return extract_users(resp.read())
-        else:
-            return []
+        def get_users_page(start):
+            conn, headers = self.make_basic_request()
+            conn.request(
+                "GET",
+                USERS_URI +
+                "?start={}".format(start),
+                headers=headers)
+            resp = conn.getresponse()
+            if resp.status == 200:
+                return extract_users(resp.read())
+            else:
+                return []
+
+        page = 1
+        result = []
+        users_list = get_users_page(page)
+
+        while users_list:
+            page += 1
+            result += users_list
+            users_list = get_users_page(page)
+
+        return result
 
     def get_users_full_info(self):
         users = self.get_users()
