@@ -9,6 +9,7 @@ import http.client
 import urllib.parse
 import urllib.request
 from base64 import b64encode
+from tornado.httpclient import AsyncHTTPClient
 
 from .parser import extract_task_list, extract_spent_time_list, extract_users, \
     extract_user
@@ -72,6 +73,18 @@ class YTClient:
                     int(time.time()) + int(data.get("expires_in", 0))
         return self._auth_key
 
+    # todo: not tested
+    def make_async_request(self, method, uri, callback):
+        return AsyncHTTPClient().fetch(**{
+            "request": "{}:{}{}".format(self._api_host, self._api_port, uri),
+            "method": method,
+            "ssl_options": ssl._create_unverified_context(),
+            "headers": {
+                "Authorization": "{type} {token}".format(
+                    type="Bearer",
+                    token=self.auth())}
+        })
+
     def make_basic_request(self):
         conn = http.client.HTTPSConnection(
             host=self._api_host,
@@ -104,7 +117,9 @@ class YTClient:
         conn, headers = self.make_basic_request()
         conn.request(
             "GET",
-            TIME_TRACKING_URI.format(issue_id=task_id),
+            TIME_TRACKING_URI.format(issue_id=task_id) +
+            # todo: this hack for getting all nodes per one request
+            "&max=10000",
             headers=headers)
         resp = conn.getresponse()
         if resp.status == 200:
@@ -128,7 +143,9 @@ class YTClient:
         conn, headers = self.make_basic_request()
         conn.request(
             "GET",
-            USERS_URI,
+            USERS_URI +
+            # todo: this hack for getting all nodes per one request
+            "&max=10000",
             headers=headers)
         resp = conn.getresponse()
         if resp.status == 200:
