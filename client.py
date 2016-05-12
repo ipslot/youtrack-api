@@ -151,12 +151,12 @@ class YTClient:
             else:
                 return []
 
-        page = 1
+        page = 0
         result = []
         users_list = get_users_page(page)
 
         while users_list:
-            page += 1
+            page += 10
             result += users_list
             users_list = get_users_page(page)
 
