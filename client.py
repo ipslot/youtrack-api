@@ -19,6 +19,12 @@ USERS_URI = "/rest/admin/user"
 USER_URI = "/rest/admin/user/{user}"
 TIME_TRACKING_URI = ISSUE_URI + "/{issue_id}/timetracking/workitem"
 
+TIME_ENTRY_STRING_PATTERN = "<workItem><date>{timestamp}</date>" + \
+                            "<duration>{duration}</duration>" + \
+                            "<description>{description}</description>" + \
+                            "<worktype><name>{worktype}</name></worktype>" + \
+                            "</workItem>"
+
 
 class YTClient:
 
@@ -30,6 +36,7 @@ class YTClient:
         self._api_host = api_host
         self._api_port = api_port
         self._auth_key = None
+        self._auth_user = None
         self._auth_key_expired = 0
         self._auth_host = auth_host if auth_host else api_host
         self._auth_port = auth_port if auth_port else api_port
@@ -38,8 +45,8 @@ class YTClient:
         timestamp = int(time.time())
         return self._auth_key and self._auth_key_expired > timestamp
 
-    def auth(self):
-        if not self.is_authenticated():
+    def auth(self, login=None, password=None):
+        if not self.is_authenticated() or self._auth_user != login:
             auth_host = self._auth_host.split("/")[0]
             auth_uri = (self._auth_host.replace(auth_host, "/") + "/").\
                 replace("//", "/")
@@ -58,16 +65,26 @@ class YTClient:
                             format(uid=self._uid, secret=self._secret).
                             encode("ascii")).
                         decode("utf8"))}
-            params = urllib.parse.urlencode({
-                "grant_type": "client_credentials",
-                "scope": self._scope})
+            if login and password:
+                params = urllib.parse.urlencode({
+                    "grant_type": "password",
+                    "username": login,
+                    "password": password,
+                    "scope": self._scope})
+            else:
+                params = urllib.parse.urlencode({
+                    "grant_type": "client_credentials",
+                    "scope": self._scope})
+
             conn.request("POST",
                          auth_uri + "api/rest/oauth2/token",
                          params,
                          headers=headers)
             resp = conn.getresponse()
+
             if resp.status == 200:
                 data = json.loads(resp.read().decode("utf8"))
+                self._auth_user = login
                 self._auth_key = data.get("access_token", None)
                 self._auth_key_expired = \
                     int(time.time()) + int(data.get("expires_in", 0))
@@ -85,7 +102,7 @@ class YTClient:
                     token=self.auth())}
         })
 
-    def make_basic_request(self):
+    def make_basic_request(self, login=None, password=None):
         conn = http.client.HTTPSConnection(
             host=self._api_host,
             port=self._api_port,
@@ -93,7 +110,7 @@ class YTClient:
             context=ssl._create_unverified_context())
         headers = {"Authorization": "{type} {token}".format(
             type="Bearer",
-            token=self.auth())}
+            token=self.auth(login, password))}
         return conn, headers
 
     def get_queried_tasks(self, query):
@@ -124,6 +141,26 @@ class YTClient:
             return extract_spent_time_list(resp.read())
         else:
             return []
+
+    def add_spent_time(self, login, password,
+                       task_id, timestamp, duration, worktype,
+                       description=None):
+        conn, headers = self.make_basic_request(login, password)
+        headers['Content-Type'] = 'application/xml'
+        conn.request(
+            "POST",
+            TIME_TRACKING_URI.format(issue_id=task_id),
+            headers=headers,
+            body=TIME_ENTRY_STRING_PATTERN.format(
+                timestamp=timestamp,
+                duration=duration,
+                description=description,
+                worktype=worktype).encode("utf-8"))
+        resp = conn.getresponse()
+        if resp.status == 201:
+            return True
+        else:
+            return False
 
     def get_user_info(self, user_login):
         conn, headers = self.make_basic_request()
